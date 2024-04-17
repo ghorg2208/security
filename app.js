@@ -1,31 +1,60 @@
 const express = require('express');
 const app = express();
+const port = 3000;
 
-// Middleware pour vérifier le token
-const authMiddleware = (req, res, next) => {
-  const token = req.headers.token;
-  if (token === '42') {
-    next(); // Accès autorisé
-  } else {
-    res.status(403).json({ message: 'Accès refusé' }); // Accès refusé
-  }
+// Liste des URL publiques
+let publicUrls = ['/url1', '/url2', '/login'];
+
+// Middleware pour afficher les en-têtes de la requête
+const logHeadersMiddleware = (req, res, next) => {
+  console.log('Headers de la requête :', req.headers);
+  next();
 };
 
-// Route GET /hello
-app.get('/hello', (req, res) => {
-  res.send('<h1>hello</h1>');
+// Middleware "firewall"
+function myMiddleware(req, res, next) {
+  const requestedUrl = req.url;
+  const token = req.headers.authorization;
+
+  if (publicUrls.includes(requestedUrl)) {
+    // URL publique, passer au prochain middleware
+    next();
+  } else {
+    // URL privée, vérifier l'authentification
+    if (token === '42') {
+      // Token valide, passer au prochain middleware
+      next();
+    } else {
+      // Accès refusé
+      res.status(403).send('Accès refusé');
+    }
+  }
+}
+
+// Utiliser les middlewares
+app.use(logHeadersMiddleware);
+app.use(myMiddleware);
+
+// Route pour générer un token
+app.post('/login', (req, res) => {
+  res.json({ token: '42' }); // Générer un token unique !!
+  // et renvoyer par cookie
 });
 
-// Route GET /restricted1
-app.get('/restricted1', authMiddleware, (req, res) => {
-  res.json({ message: 'topsecret' });
+// Routes publiques
+app.get('/url1', (req, res) => {
+  res.send('Hello World!');
 });
 
-// Route GET /restricted2
-app.get('/restricted2', authMiddleware, (req, res) => {
-  res.send('<h1>Admin space</h1>');
+app.get('/url2', (req, res) => {
+  res.send('Hello World!');
 });
 
-app.listen(3000, () => {
-  console.log('Serveur démarré sur le port 3000');
+// Route privée
+app.get('/private/url1', (req, res) => {
+  res.send('Hello it is secret');
+});
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
 });
